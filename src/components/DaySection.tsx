@@ -14,6 +14,7 @@ type Props = {
   onPushTomorrow: (id: string) => void;
   onDelete: (id: string) => void;
   onReschedule: (id: string, dueDate: string) => void;
+  onUpdateText: (id: string, text: string) => void;
   hideEmpty?: boolean;
 };
 
@@ -27,6 +28,7 @@ export function DaySection({
   onPushTomorrow,
   onDelete,
   onReschedule,
+  onUpdateText,
   hideEmpty,
 }: Props) {
   const [composing, setComposing] = useState(false);
@@ -75,6 +77,7 @@ export function DaySection({
               onPushTomorrow={onPushTomorrow}
               onDelete={onDelete}
               onReschedule={onReschedule}
+              onUpdateText={onUpdateText}
             />
           </li>
         ))}

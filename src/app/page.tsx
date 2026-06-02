@@ -15,6 +15,7 @@ export default function TodayPage() {
     complete,
     uncomplete,
     reschedule,
+    updateText,
     pushToTomorrow,
     remove,
   } = useTasks();
@@ -71,6 +72,7 @@ export default function TodayPage() {
           onPushTomorrow={pushToTomorrow}
           onDelete={remove}
           onReschedule={reschedule}
+          onUpdateText={updateText}
           hideEmpty={d.date !== today && d.date !== addDaysISO(today, 1)}
         />
       ))}
@@ -95,6 +97,7 @@ export default function TodayPage() {
                 onPushTomorrow={pushToTomorrow}
                 onDelete={remove}
                 onReschedule={reschedule}
+                onUpdateText={updateText}
               />
             ))}
         </section>

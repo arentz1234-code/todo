@@ -12,6 +12,7 @@ export default function DonePage() {
     complete,
     uncomplete,
     reschedule,
+    updateText,
     pushToTomorrow,
     remove,
   } = useTasks();
@@ -56,6 +57,7 @@ export default function DonePage() {
                     onPushTomorrow={pushToTomorrow}
                     onDelete={remove}
                     onReschedule={reschedule}
+                    onUpdateText={updateText}
                   />
                 </li>
               ))}

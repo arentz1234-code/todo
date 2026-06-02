@@ -149,6 +149,15 @@ export function useTasks() {
     [patch],
   );
 
+  const updateText = useCallback(
+    (id: string, text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      patch(id, { text: trimmed });
+    },
+    [patch],
+  );
+
   const pushToTomorrow = useCallback(
     (id: string) => reschedule(id, addDaysISO(todayISO(), 1)),
     [reschedule],
@@ -170,6 +179,7 @@ export function useTasks() {
     complete,
     uncomplete,
     reschedule,
+    updateText,
     pushToTomorrow,
     remove,
   };
