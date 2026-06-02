@@ -10,6 +10,7 @@ export type Task = {
   due_date: string;
   completed_at: string | null;
   created_at: string;
+  sort_order: number;
 };
 
 function uid() {
@@ -107,12 +108,17 @@ export function useTasks() {
   const add = useCallback((text: string, dueDate?: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
+    const targetDay = dueDate ?? todayISO();
+    const maxSort = tasks
+      .filter((t) => t.due_date === targetDay && !t.completed_at)
+      .reduce((m, t) => Math.max(m, t.sort_order), -1);
     const optimistic: Task = {
       id: uid(),
       text: trimmed,
-      due_date: dueDate ?? todayISO(),
+      due_date: targetDay,
       completed_at: null,
       created_at: new Date().toISOString(),
+      sort_order: maxSort + 1,
     };
     setTasks((prev) => [...prev, optimistic]);
     (async () => {
@@ -122,6 +128,7 @@ export function useTasks() {
         .insert({
           text: optimistic.text,
           due_date: optimistic.due_date,
+          sort_order: optimistic.sort_order,
         })
         .select()
         .single();
@@ -206,6 +213,25 @@ export function useTasks() {
     }, 500);
   }, []);
 
+  const reorder = useCallback((orderedIds: string[]) => {
+    setTasks((prev) => {
+      const indexMap = new Map(orderedIds.map((id, idx) => [id, idx]));
+      return prev.map((t) =>
+        indexMap.has(t.id) ? { ...t, sort_order: indexMap.get(t.id)! } : t,
+      );
+    });
+    (async () => {
+      const supabase = getClient();
+      const updates = orderedIds.map((id, idx) =>
+        supabase.from("tasks").update({ sort_order: idx }).eq("id", id),
+      );
+      const results = await Promise.all(updates);
+      for (const r of results) {
+        if (r.error) console.error("[reorder]", r.error);
+      }
+    })();
+  }, []);
+
   const remove = useCallback((id: string) => {
     setTasks((prev) => prev.filter((t) => t.id !== id));
     (async () => {
@@ -226,6 +252,7 @@ export function useTasks() {
     updateText,
     pushToTomorrow,
     remove,
+    reorder,
     setNote,
   };
 }

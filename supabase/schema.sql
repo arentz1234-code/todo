@@ -11,8 +11,11 @@ create table if not exists public.tasks (
   created_at timestamptz not null default now()
 );
 
+alter table public.tasks add column if not exists sort_order int not null default 0;
+
 create index if not exists tasks_due_idx on public.tasks (due_date);
 create index if not exists tasks_completed_idx on public.tasks (completed_at);
+create index if not exists tasks_sort_idx on public.tasks (due_date, sort_order);
 
 alter table public.tasks enable row level security;
 

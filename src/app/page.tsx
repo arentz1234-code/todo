@@ -20,13 +20,18 @@ export default function TodayPage() {
     updateText,
     pushToTomorrow,
     remove,
+    reorder,
     setNote,
   } = useTasks();
 
   const today = todayISO();
   const open = tasks
     .filter((t) => !t.completed_at)
-    .sort((a, b) => a.created_at.localeCompare(b.created_at));
+    .sort(
+      (a, b) =>
+        a.sort_order - b.sort_order ||
+        a.created_at.localeCompare(b.created_at),
+    );
 
   const horizonEnd = addDaysISO(today, VISIBLE_DAYS - 1);
   const days: { date: string; label: string }[] = [];
@@ -80,6 +85,7 @@ export default function TodayPage() {
           onDelete={remove}
           onReschedule={reschedule}
           onUpdateText={updateText}
+          onReorder={reorder}
           hideEmpty={d.date !== today && d.date !== addDaysISO(today, 1)}
         />
       ))}
@@ -105,6 +111,7 @@ export default function TodayPage() {
                 onDelete={remove}
                 onReschedule={reschedule}
                 onUpdateText={updateText}
+                onReorder={reorder}
               />
             ))}
         </section>

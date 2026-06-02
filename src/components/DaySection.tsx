@@ -1,6 +1,22 @@
 "use client";
 
 import { useRef, useState } from "react";
+import {
+  DndContext,
+  PointerSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import type { Task } from "@/lib/store";
 import { TaskRow } from "./TaskRow";
 
@@ -15,6 +31,7 @@ type Props = {
   onDelete: (id: string) => void;
   onReschedule: (id: string, dueDate: string) => void;
   onUpdateText: (id: string, text: string) => void;
+  onReorder: (orderedIds: string[]) => void;
   hideEmpty?: boolean;
 };
 
@@ -29,11 +46,19 @@ export function DaySection({
   onDelete,
   onReschedule,
   onUpdateText,
+  onReorder,
   hideEmpty,
 }: Props) {
   const [composing, setComposing] = useState(false);
   const [text, setText] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 0, tolerance: 5 },
+    }),
+  );
 
   if (hideEmpty && tasks.length === 0 && !composing) return null;
 
@@ -43,6 +68,16 @@ export function DaySection({
     onAdd(v, dueDate);
     setText("");
     inputRef.current?.focus();
+  }
+
+  function handleDragEnd(e: DragEndEvent) {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const ids = tasks.map((t) => t.id);
+    const oldIndex = ids.indexOf(String(active.id));
+    const newIndex = ids.indexOf(String(over.id));
+    if (oldIndex === -1 || newIndex === -1) return;
+    onReorder(arrayMove(ids, oldIndex, newIndex));
   }
 
   return (
@@ -66,22 +101,31 @@ export function DaySection({
         </button>
       </div>
 
-      <ul>
-        {tasks.map((t) => (
-          <li key={t.id}>
-            <TaskRow
-              task={t}
-              mode="open"
-              onComplete={onComplete}
-              onUncomplete={onUncomplete}
-              onPushTomorrow={onPushTomorrow}
-              onDelete={onDelete}
-              onReschedule={onReschedule}
-              onUpdateText={onUpdateText}
-            />
-          </li>
-        ))}
-      </ul>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={tasks.map((t) => t.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <ul>
+            {tasks.map((t) => (
+              <SortableItem
+                key={t.id}
+                task={t}
+                onComplete={onComplete}
+                onUncomplete={onUncomplete}
+                onPushTomorrow={onPushTomorrow}
+                onDelete={onDelete}
+                onReschedule={onReschedule}
+                onUpdateText={onUpdateText}
+              />
+            ))}
+          </ul>
+        </SortableContext>
+      </DndContext>
 
       {composing && (
         <form
@@ -117,5 +161,56 @@ export function DaySection({
         <p className="px-5 py-4 text-sm text-muted/70">No tasks</p>
       )}
     </section>
+  );
+}
+
+function SortableItem({
+  task,
+  onComplete,
+  onUncomplete,
+  onPushTomorrow,
+  onDelete,
+  onReschedule,
+  onUpdateText,
+}: {
+  task: Task;
+  onComplete: (id: string) => void;
+  onUncomplete: (id: string) => void;
+  onPushTomorrow: (id: string) => void;
+  onDelete: (id: string) => void;
+  onReschedule: (id: string, dueDate: string) => void;
+  onUpdateText: (id: string, text: string) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : "auto",
+    position: "relative",
+  };
+
+  return (
+    <li ref={setNodeRef} style={style}>
+      <TaskRow
+        task={task}
+        mode="open"
+        onComplete={onComplete}
+        onUncomplete={onUncomplete}
+        onPushTomorrow={onPushTomorrow}
+        onDelete={onDelete}
+        onReschedule={onReschedule}
+        onUpdateText={onUpdateText}
+        dragHandleProps={{ ...attributes, ...listeners }}
+        isDragging={isDragging}
+      />
+    </li>
   );
 }

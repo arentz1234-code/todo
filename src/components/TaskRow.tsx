@@ -12,6 +12,8 @@ type Props = {
   onDelete: (id: string) => void;
   onReschedule: (id: string, dueDate: string) => void;
   onUpdateText: (id: string, text: string) => void;
+  dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
+  isDragging?: boolean;
 };
 
 export function TaskRow({
@@ -23,6 +25,8 @@ export function TaskRow({
   onDelete,
   onReschedule,
   onUpdateText,
+  dragHandleProps,
+  isDragging,
 }: Props) {
   const [dragX, setDragX] = useState(0);
   const startX = useRef<number | null>(null);
@@ -65,7 +69,9 @@ export function TaskRow({
           transform: `translateX(${dragX}px)`,
           transition: startX.current === null ? "transform 200ms" : "none",
         }}
-        className="flex items-center gap-3 border-b border-border bg-card px-4 py-3"
+        className={`flex items-center gap-3 border-b border-border bg-card px-4 py-3 ${
+          isDragging ? "opacity-50 shadow-lg" : ""
+        }`}
       >
         <button
           aria-label={mode === "open" ? "Complete" : "Restore"}
@@ -98,21 +104,23 @@ export function TaskRow({
         >
           {task.text}
         </button>
-        <button
-          onClick={() => setEditing(true)}
-          aria-label="Edit"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted active:bg-border"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M4 20h4l10-10-4-4L4 16v4z"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
+        {dragHandleProps && mode === "open" && (
+          <button
+            type="button"
+            aria-label="Drag to reorder"
+            {...dragHandleProps}
+            className="flex h-9 w-9 shrink-0 cursor-grab touch-none items-center justify-center text-muted/70 active:cursor-grabbing"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M9 5h0M15 5h0M9 12h0M15 12h0M9 19h0M15 19h0"
+                stroke="currentColor"
+                strokeWidth="3"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        )}
       </div>
 
       {editing && (
