@@ -20,8 +20,10 @@ function uid() {
 
 export function useTasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [notes, setNotes] = useState<Record<string, string>>({});
   const [hydrated, setHydrated] = useState(false);
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
+  const noteSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   function getClient() {
     if (!supabaseRef.current) supabaseRef.current = createClient();
@@ -33,17 +35,19 @@ export function useTasks() {
     (async () => {
       const supabase = getClient();
       await supabase.rpc("roll_forward_open_tasks");
-      const { data, error } = await supabase
-        .from("tasks")
-        .select("*")
-        .order("created_at", { ascending: true });
+      const [tasksRes, notesRes] = await Promise.all([
+        supabase.from("tasks").select("*").order("created_at", { ascending: true }),
+        supabase.from("day_notes").select("day, content"),
+      ]);
       if (!active) return;
-      if (error) {
-        console.error("[tasks load]", error);
-        setTasks([]);
-      } else {
-        setTasks((data ?? []) as Task[]);
+      if (tasksRes.error) console.error("[tasks load]", tasksRes.error);
+      setTasks((tasksRes.data ?? []) as Task[]);
+      if (notesRes.error) console.error("[notes load]", notesRes.error);
+      const noteMap: Record<string, string> = {};
+      for (const row of (notesRes.data ?? []) as { day: string; content: string }[]) {
+        noteMap[row.day] = row.content;
       }
+      setNotes(noteMap);
       setHydrated(true);
     })();
     return () => {
@@ -54,7 +58,7 @@ export function useTasks() {
   useEffect(() => {
     const supabase = getClient();
     const channel = supabase
-      .channel("tasks-sync")
+      .channel("daily-todo-sync")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "tasks" },
@@ -75,6 +79,23 @@ export function useTasks() {
             }
             return prev;
           });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "day_notes" },
+        (payload) => {
+          if (payload.eventType === "DELETE") {
+            const row = payload.old as { day: string };
+            setNotes((prev) => {
+              const next = { ...prev };
+              delete next[row.day];
+              return next;
+            });
+            return;
+          }
+          const row = payload.new as { day: string; content: string };
+          setNotes((prev) => ({ ...prev, [row.day]: row.content }));
         },
       )
       .subscribe();
@@ -163,6 +184,28 @@ export function useTasks() {
     [reschedule],
   );
 
+  const setNote = useCallback((day: string, content: string) => {
+    setNotes((prev) => ({ ...prev, [day]: content }));
+    if (noteSaveTimers.current[day]) {
+      clearTimeout(noteSaveTimers.current[day]);
+    }
+    noteSaveTimers.current[day] = setTimeout(async () => {
+      const supabase = getClient();
+      if (content.trim().length === 0) {
+        const { error } = await supabase
+          .from("day_notes")
+          .delete()
+          .eq("day", day);
+        if (error) console.error("[note delete]", error);
+      } else {
+        const { error } = await supabase
+          .from("day_notes")
+          .upsert({ day, content, updated_at: new Date().toISOString() });
+        if (error) console.error("[note save]", error);
+      }
+    }, 500);
+  }, []);
+
   const remove = useCallback((id: string) => {
     setTasks((prev) => prev.filter((t) => t.id !== id));
     (async () => {
@@ -174,6 +217,7 @@ export function useTasks() {
 
   return {
     tasks,
+    notes,
     hydrated,
     add,
     complete,
@@ -182,5 +226,6 @@ export function useTasks() {
     updateText,
     pushToTomorrow,
     remove,
+    setNote,
   };
 }

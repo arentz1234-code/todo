@@ -3,11 +3,13 @@
 import { useTasks, type Task } from "@/lib/store";
 import { prettyDay } from "@/lib/date";
 import { TaskRow } from "@/components/TaskRow";
+import { DayNote } from "@/components/DayNote";
 import { BottomNav } from "@/components/BottomNav";
 
 export default function DonePage() {
   const {
     tasks,
+    notes,
     hydrated,
     complete,
     uncomplete,
@@ -15,6 +17,7 @@ export default function DonePage() {
     updateText,
     pushToTomorrow,
     remove,
+    setNote,
   } = useTasks();
 
   const done = tasks
@@ -28,6 +31,12 @@ export default function DonePage() {
     if (!groups.has(day)) groups.set(day, []);
     groups.get(day)!.push(t);
   }
+  for (const day of Object.keys(notes)) {
+    if (!groups.has(day) && (notes[day] ?? "").trim().length > 0) {
+      groups.set(day, []);
+    }
+  }
+  const sortedDays = Array.from(groups.keys()).sort((a, b) => b.localeCompare(a));
 
   return (
     <main className="mx-auto max-w-md">
@@ -36,34 +45,50 @@ export default function DonePage() {
         <h1 className="text-3xl font-semibold">Done</h1>
       </header>
 
-      {hydrated && groups.size === 0 ? (
+      {hydrated && sortedDays.length === 0 ? (
         <p className="px-5 py-12 text-center text-muted">
-          Nothing completed yet.
+          Nothing yet.
         </p>
       ) : (
-        Array.from(groups.entries()).map(([day, items]) => (
-          <section key={day} className="mt-4">
-            <h2 className="border-b border-border bg-bg px-5 py-2 text-xs font-medium uppercase tracking-wide text-muted">
-              {prettyDay(day)} · {items.length}
-            </h2>
-            <ul>
-              {items.map((t) => (
-                <li key={t.id}>
-                  <TaskRow
-                    task={t}
-                    mode="done"
-                    onComplete={complete}
-                    onUncomplete={uncomplete}
-                    onPushTomorrow={pushToTomorrow}
-                    onDelete={remove}
-                    onReschedule={reschedule}
-                    onUpdateText={updateText}
+        sortedDays.map((day) => {
+          const items = groups.get(day) ?? [];
+          const note = notes[day] ?? "";
+          return (
+            <section key={day} className="mt-4">
+              <h2 className="border-b border-border bg-bg px-5 py-2 text-xs font-medium uppercase tracking-wide text-muted">
+                {prettyDay(day)}
+                {items.length > 0 && ` · ${items.length}`}
+              </h2>
+              {(note.length > 0 || items.length === 0) && (
+                <div className="border-b border-border px-5 py-3">
+                  <DayNote
+                    day={day}
+                    value={note}
+                    onChange={setNote}
+                    placeholder="Add a note for this day…"
+                    compact
                   />
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))
+                </div>
+              )}
+              <ul>
+                {items.map((t) => (
+                  <li key={t.id}>
+                    <TaskRow
+                      task={t}
+                      mode="done"
+                      onComplete={complete}
+                      onUncomplete={uncomplete}
+                      onPushTomorrow={pushToTomorrow}
+                      onDelete={remove}
+                      onReschedule={reschedule}
+                      onUpdateText={updateText}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          );
+        })
       )}
 
       <BottomNav />

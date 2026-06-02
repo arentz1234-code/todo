@@ -42,5 +42,27 @@ $$;
 
 grant execute on function public.roll_forward_open_tasks() to anon, authenticated;
 
+-- Daily notes: a free-form text entry per calendar day.
+create table if not exists public.day_notes (
+  day date primary key,
+  content text not null default '',
+  updated_at timestamptz not null default now()
+);
+
+alter table public.day_notes enable row level security;
+
+drop policy if exists "day_notes_anon_all" on public.day_notes;
+create policy "day_notes_anon_all" on public.day_notes
+  for all to anon
+  using (true)
+  with check (true);
+
+drop policy if exists "day_notes_auth_all" on public.day_notes;
+create policy "day_notes_auth_all" on public.day_notes
+  for all to authenticated
+  using (true)
+  with check (true);
+
 -- Optional: enable Realtime for live cross-tab/device updates.
--- Dashboard → Database → Replication → enable 'tasks' under the 'supabase_realtime' publication.
+-- Dashboard → Database → Replication → enable 'tasks' and 'day_notes'
+-- under the 'supabase_realtime' publication.

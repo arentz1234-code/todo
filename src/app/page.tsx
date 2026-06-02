@@ -3,6 +3,7 @@
 import { useTasks, type Task } from "@/lib/store";
 import { todayISO, addDaysISO, prettyDay } from "@/lib/date";
 import { DaySection } from "@/components/DaySection";
+import { DayNote } from "@/components/DayNote";
 import { BottomNav } from "@/components/BottomNav";
 
 const VISIBLE_DAYS = 7;
@@ -10,6 +11,7 @@ const VISIBLE_DAYS = 7;
 export default function TodayPage() {
   const {
     tasks,
+    notes,
     hydrated,
     add,
     complete,
@@ -18,6 +20,7 @@ export default function TodayPage() {
     updateText,
     pushToTomorrow,
     remove,
+    setNote,
   } = useTasks();
 
   const today = todayISO();
@@ -59,6 +62,10 @@ export default function TodayPage() {
           {!hydrated ? " " : totalOpen === 0 ? "All clear." : `${totalOpen} open`}
         </h1>
       </header>
+
+      <div className="px-5 pb-2 pt-3">
+        <DayNote day={today} value={notes[today] ?? ""} onChange={setNote} />
+      </div>
 
       {days.map((d) => (
         <DaySection
