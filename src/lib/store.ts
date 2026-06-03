@@ -111,7 +111,7 @@ export function useTasks() {
     const targetDay = dueDate ?? todayISO();
     const maxSort = tasks
       .filter((t) => t.due_date === targetDay && !t.completed_at)
-      .reduce((m, t) => Math.max(m, t.sort_order), -1);
+      .reduce((m, t) => Math.max(m, t.sort_order ?? 0), -1);
     const optimistic: Task = {
       id: uid(),
       text: trimmed,
@@ -123,7 +123,7 @@ export function useTasks() {
     setTasks((prev) => [...prev, optimistic]);
     (async () => {
       const supabase = getClient();
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from("tasks")
         .insert({
           text: optimistic.text,
@@ -132,13 +132,25 @@ export function useTasks() {
         })
         .select()
         .single();
+      if (error && /sort_order/.test(error.message ?? "")) {
+        ({ data, error } = await supabase
+          .from("tasks")
+          .insert({
+            text: optimistic.text,
+            due_date: optimistic.due_date,
+          })
+          .select()
+          .single());
+      }
       if (error) {
         console.error("[tasks add]", error);
         setTasks((prev) => prev.filter((t) => t.id !== optimistic.id));
         return;
       }
+      const inserted = data as Task;
+      if (inserted.sort_order == null) inserted.sort_order = optimistic.sort_order;
       setTasks((prev) =>
-        prev.map((t) => (t.id === optimistic.id ? (data as Task) : t)),
+        prev.map((t) => (t.id === optimistic.id ? inserted : t)),
       );
     })();
   }, []);
